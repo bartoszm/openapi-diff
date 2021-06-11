@@ -316,7 +316,7 @@ public class MarkdownRender implements Render {
     schema
         .getChangedProperties()
         .forEach((name, property) -> sb.append(property(deepness, name, property)));
-    return sb.toString();
+    return sb.toString() + "\n";
   }
 
   protected String schema(int deepness, ComposedSchema schema, DiffContext context) {
