@@ -25,15 +25,15 @@ public class MarkdownRender implements Render {
   public static final Logger LOGGER = LoggerFactory.getLogger(MarkdownRender.class);
 
   protected RefPointer<Schema> refPointer = new RefPointer<>(RefType.SCHEMAS);
-  protected final String H3 = "### ";
-  protected final String H4 = "#### ";
-  protected final String H5 = "##### ";
-  protected final String H6 = "###### ";
+  protected final String H3 = "# ";
+  protected final String H4 = "# ";
+  protected final String H5 = "## ";
+  protected final String H6 = "### ";
   protected final String BLOCKQUOTE = "> ";
   protected final String CODE = "`";
   protected final String PRE_CODE = "    ";
   protected final String PRE_LI = "    ";
-  protected final String LI = "* ";
+  protected final String LI = "- ";
   protected final String HR = "---\n";
   protected ChangedOpenApi diff;
   /**
@@ -293,7 +293,7 @@ public class MarkdownRender implements Render {
     }
     if (schema.getRequired() != null) {
       sb.append(required(deepness, "New required properties", schema.getRequired().getIncreased()));
-      sb.append(required(deepness, "New optional properties", schema.getRequired().getMissing()));
+      sb.append(required(deepness, "Removed requirement for", schema.getRequired().getMissing()));
     }
     if (schema.getItems() != null) {
       sb.append(items(deepness, schema.getItems()));

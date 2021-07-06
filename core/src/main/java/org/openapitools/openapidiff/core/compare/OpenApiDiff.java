@@ -25,7 +25,7 @@ public class OpenApiDiff {
   private static final Logger logger = LoggerFactory.getLogger(OpenApiDiff.class);
   private PathsDiff pathsDiff;
   private PathDiff pathDiff;
-  private SchemaDiff schemaDiff;
+  protected SchemaDiff schemaDiff;
   private ContentDiff contentDiff;
   private ParametersDiff parametersDiff;
   private ParameterDiff parameterDiff;
@@ -53,7 +53,7 @@ public class OpenApiDiff {
    * @param oldSpecOpenApi
    * @param newSpecOpenApi
    */
-  private OpenApiDiff(OpenAPI oldSpecOpenApi, OpenAPI newSpecOpenApi) {
+  protected OpenApiDiff(OpenAPI oldSpecOpenApi, OpenAPI newSpecOpenApi) {
     this.oldSpecOpenApi = oldSpecOpenApi;
     this.newSpecOpenApi = newSpecOpenApi;
     if (null == oldSpecOpenApi || null == newSpecOpenApi) {
@@ -66,7 +66,7 @@ public class OpenApiDiff {
     return new OpenApiDiff(oldSpec, newSpec).compare();
   }
 
-  private void initializeFields() {
+  protected void initializeFields() {
     this.pathsDiff = new PathsDiff(this);
     this.pathDiff = new PathDiff(this);
     this.schemaDiff = new SchemaDiff(this);
@@ -88,7 +88,7 @@ public class OpenApiDiff {
     this.metadataDiff = new MetadataDiff(this);
   }
 
-  private ChangedOpenApi compare() {
+  public ChangedOpenApi compare() {
     preProcess(oldSpecOpenApi);
     preProcess(newSpecOpenApi);
     Optional<ChangedPaths> paths =
