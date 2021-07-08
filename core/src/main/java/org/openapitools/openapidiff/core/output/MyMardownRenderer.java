@@ -11,7 +11,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.lang3.StringUtils;
-import org.openapitools.openapidiff.core.model.Changed;
 import org.openapitools.openapidiff.core.model.ChangedContent;
 import org.openapitools.openapidiff.core.model.ChangedMediaType;
 import org.openapitools.openapidiff.core.model.ChangedMetadata;
@@ -47,20 +46,10 @@ public class MyMardownRenderer extends MarkdownRender {
 
     var title = sectionTitle("Global Changes");
     return globalChanges.stream()
-        .map(c -> change(c) + "\n")
+        .sorted(GlobalChange::compareTo)
+        .map(c -> String.format("- %s\n", c))
         .collect(Collectors.joining("", title, ""));
 
-  }
-
-  private String change(GlobalChange c) {
-    switch (c.getType()) {
-      case add:
-        return String.format("- Added property `%s`", c.getAttributeName());
-      case remove:
-        return String.format("- Deleted property `%s`", c.getAttributeName());
-      default:
-        return String.format("- Changed property `%s`", c.getAttributeName());
-    }
   }
 
   @Override
