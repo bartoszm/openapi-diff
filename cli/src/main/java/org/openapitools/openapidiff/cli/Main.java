@@ -161,12 +161,12 @@ public class Main {
   }
 
   private static Predicate<Path> apiFile(Path original) {
-    var oP = original.toFile().getPath();
+    var oP = original.getFileName().toString();
     return p -> {
       final File f = p.toFile();
       return f.isFile()
           && f.getName().endsWith(DEFAULT_OAS_EXTENSION)
-          && oP.startsWith(f.getParent());
+          && oP.startsWith(f.getName());
     };
   }
 
@@ -208,8 +208,10 @@ public class Main {
   }
 
   private static OpenAPI readLocation(Path location) {
+    var opts = new ParseOptions();
+    opts.setResolve(true);
     SwaggerParseResult result =
-        openApiParser.readLocation(location.toAbsolutePath().toString(), null, new ParseOptions());
+        openApiParser.readLocation(location.toAbsolutePath().toString(), null, opts);
     return result.getOpenAPI();
   }
 }
