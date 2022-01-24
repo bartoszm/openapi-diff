@@ -19,6 +19,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
@@ -60,6 +61,8 @@ public class Main {
                     + DEFAULT_ORIGINAL_YAML)
             .build());
     options.addOption(
+        Option.builder("d").longOpt("directory").desc("Directory comparison mode").build());
+    options.addOption(
         Option.builder()
             .longOpt("output")
             .hasArg()
@@ -93,29 +96,17 @@ public class Main {
       }
       LogManager.getRootLogger().setLevel(Level.toLevel(logLevel));
 
-      final String originalYaml = line.getOptionValue("original", DEFAULT_ORIGINAL_YAML);
-      final String outputFileName = line.getOptionValue("output", DEFAULT_OUTPUT_MD);
-
       if (logger.isDebugEnabled()) {
         logger.debug(
             "Provided {} arguments: {}",
             line.getArgList().size(),
             String.join(",", line.getArgList()));
       }
-      switch (line.getArgList().size()) {
-        case 0:
-          throw new ParseException("Missing arguments");
-        case 1:
-          Path root = Path.of(line.getArgList().get(0));
-          logger.debug("Processing APIs in bulk in directory: {}", root.toAbsolutePath());
-          Files.list(root)
-              .filter(Files::isDirectory)
-              .forEach(apiDir -> Main.writeDiff(apiDir, originalYaml, outputFileName));
-          break;
-        default:
-          Path apiDir = Path.of(line.getArgList().get(0), line.getArgList().get(1));
-          logger.debug("Processing single API in directory: {}", apiDir.toAbsolutePath());
-          Main.writeDiff(apiDir, originalYaml, outputFileName);
+
+      if (line.hasOption("directory")) {
+        directoryMode(line);
+      } else {
+        fileMode(line);
       }
 
     } catch (ParseException e) {
@@ -130,6 +121,66 @@ public class Main {
               + "\n"
               + ExceptionUtils.getStackTrace(e));
       System.exit(2);
+    }
+  }
+
+  private static void fileMode(CommandLine line) throws ParseException {
+    var baseName = line.getOptionValue("original", DEFAULT_ORIGINAL_YAML);
+    final var baselineYaml =
+        toPathIfExists(baseName)
+            .orElseThrow(
+                () -> new IllegalArgumentException(String.format("%s is not a file", baseName)));
+    final String outputFileName = line.getOptionValue("output", DEFAULT_OUTPUT_MD);
+    if (line.getArgList().size() == 0) {
+      throw new ParseException("Missing name of current file");
+    }
+
+    line.getArgList()
+        .forEach(
+            f -> {
+              var currentYaml =
+                  toPathIfExists(f)
+                      .orElseThrow(
+                          () -> new IllegalArgumentException(String.format("%s is not a file", f)));
+              var currentName =
+                  FilenameUtils.removeExtension(currentYaml.getFileName().toString())
+                      + "."
+                      + outputFileName;
+              try {
+
+                writeDiff(baselineYaml, currentYaml, currentName);
+              } catch (IOException e) {
+                throw new IllegalStateException(e);
+              }
+            });
+  }
+
+  private static Optional<Path> toPathIfExists(String name) {
+    var fn = Path.of(name);
+    if (Files.isRegularFile(fn)) {
+      return Optional.of(fn);
+    }
+    return Optional.empty();
+  }
+
+  private static void directoryMode(CommandLine line) throws ParseException, IOException {
+    final String originalYaml = line.getOptionValue("original", DEFAULT_ORIGINAL_YAML);
+    final String outputFileName = line.getOptionValue("output", DEFAULT_OUTPUT_MD);
+
+    switch (line.getArgList().size()) {
+      case 0:
+        throw new ParseException("Missing arguments");
+      case 1:
+        Path root = Path.of(line.getArgList().get(0));
+        logger.debug("Processing APIs in bulk in directory: {}", root.toAbsolutePath());
+        Files.list(root)
+            .filter(Files::isDirectory)
+            .forEach(apiDir -> Main.writeDiff(apiDir, originalYaml, outputFileName));
+        break;
+      default:
+        Path apiDir = Path.of(line.getArgList().get(0), line.getArgList().get(1));
+        logger.debug("Processing single API in directory: {}", apiDir.toAbsolutePath());
+        Main.writeDiff(apiDir, originalYaml, outputFileName);
     }
   }
 
@@ -185,12 +236,14 @@ public class Main {
     var diff = diff(original, current);
     ChangedOpenApi result = diff.compare();
 
+    logger.info("Building diff between baseline: {} -> {}", original, current);
+
     Render r = new MyMardownRenderer().addGlobal(diff.getObservedChanges());
-    var into = current.getParent().resolve(outputFileName);
-    System.out.printf(
-        "Success:  %s produced for %s\n", into.toAbsolutePath(), current.getFileName());
+    var into = current.toAbsolutePath().getParent().resolve(outputFileName);
+
     try (Writer w = new FileWriter(into.toFile())) {
       w.write(r.render(result));
+      logger.info("Success:  {} produced for {}", into.toAbsolutePath(), current.getFileName());
     }
   }
 
@@ -204,7 +257,8 @@ public class Main {
     return new FillteringDiff(oldSpec, currentSpec)
         .filter(new GlobalChange("@type", GlobalChange.Operation.remove))
         .filter(new GlobalChange("@baseType", GlobalChange.Operation.remove))
-        .filter(new GlobalChange("@referredType", GlobalChange.Operation.remove));
+        .filter(new GlobalChange("@referredType", GlobalChange.Operation.remove))
+        .filter(new GlobalChange("@schemaLocation", GlobalChange.Operation.remove));
   }
 
   private static OpenAPI readLocation(Path location) {
